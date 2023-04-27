@@ -58,6 +58,10 @@ object GlobalParameters {
   object Portfolio extends Enumeration {
     val None, Template, General = Value
   }
+  
+  object SymexEngine extends Enumeration {
+    val BreadthFirstForward, DepthFirstForward, None = Value
+  }
 
   val parameters =
     new scala.util.DynamicVariable[GlobalParameters] (new GlobalParameters)
@@ -92,6 +96,8 @@ class GlobalParameters extends Cloneable {
   var printIntermediateClauseSets = false
   var horn = false
   var concurrentC = false
+  var symexEngine = GlobalParameters.SymexEngine.None
+  var symexMaxDepth : Option[Int] = None
   var global = false
   var disjunctive = false
   var splitClauses : Int = 1
@@ -185,6 +191,7 @@ class GlobalParameters extends Cloneable {
     that.horn = this.horn
     that.concurrentC = this.concurrentC
     that.global = this.global
+    that.symexEngine = this.symexEngine
     that.disjunctive = this.disjunctive
     that.splitClauses = this.splitClauses
     that.displaySolutionProlog = this.displaySolutionProlog
@@ -335,6 +342,21 @@ object Main {
       case "-sp" :: rest => smtPrettyPrint = true; arguments(rest)
 //      case "-pnts" :: rest => ntsPrint = true; arguments(rest)
       case "-horn" :: rest => horn = true; arguments(rest)
+      case "-sym" :: rest =>
+        symexEngine = GlobalParameters.SymexEngine.BreadthFirstForward
+        arguments(rest)
+      case symexOpt :: rest if (symexOpt.startsWith("-sym:")) =>
+          symexEngine = symexOpt.drop("-sym:".length) match {
+            case "dfs" => GlobalParameters.SymexEngine.DepthFirstForward
+            case "bfs" => GlobalParameters.SymexEngine.BreadthFirstForward
+            case _ =>
+              println("Unknown argument for -sym:, defaulting to bfs.")
+              GlobalParameters.SymexEngine.BreadthFirstForward
+          }
+        arguments(rest)
+      case symexDepthOpt :: rest if (symexDepthOpt.startsWith("-symDepth:")) =>
+        symexMaxDepth = Some(symexDepthOpt.drop("-symDepth:".length).toInt)
+        arguments(rest)
       case "-glb" :: rest => global = true; arguments(rest)
       case "-disj" :: rest => disjunctive = true; arguments(rest)
       case "-sol" :: rest => displaySolutionProlog = true; arguments(rest)
@@ -475,61 +497,67 @@ object Main {
       case "-verifyInterpolants" :: rest => verifyInterpolants = true; arguments(rest)
       case "-h" :: rest => println(greeting + "\n\nUsage: eld [options] file\n\n" +
           "General options:\n" +
-          " -h\t\tShow this information\n" +
-          " -assert\tEnable assertions in Eldarica\n" +
-          " -log\t\tDisplay progress and found invariants\n" + 
-          " -log:n\t\tDisplay progress with verbosity n (currently 0 <= n <= 3)\n" + 
-          " -statistics\tDisplay statistics (implied by -log)\n" + 
-          " -t:time\tSet timeout (in seconds)\n" +
-          " -cex\t\tShow textual counterexamples\n" + 
-          " -scex\t\tShow textual counterexamples in SMT-LIB format\n" + 
-          " -dotCEX\tOutput counterexample in dot format\n" + 
-          " -eogCEX\tDisplay counterexample using eog\n" + 
-          " -m:func\tUse function func as entry point (default: main)\n" +
+          " -h                Show this information\n" +
+          " -assert           Enable assertions in Eldarica\n" +
+          " -log              Display progress and found invariants\n" +
+          " -log:n            Display progress with verbosity n (currently 0 <= n <= 3)\n" +
+          " -statistics       Display statistics (implied by -log)\n" + 
+          " -t:time           Set timeout (in seconds)\n" +
+          " -cex              Show textual counterexamples\n" +
+          " -scex             Show textual counterexamples in SMT-LIB format\n" +
+          " -dotCEX           Output counterexample in dot format\n" +
+          " -eogCEX           Display counterexample using eog\n" +
+          " -m:func           Use function func as entry point (default: main)\n" +
           "\n" +
           "Horn engine:\n" +
-          " -horn\t\tEnable this engine\n" + 
-          " -p\t\tPretty Print Horn clauses\n" +
-          " -sp\t\tPretty print the Horn clauses in SMT-LIB format\n" + 
-          " -sol\t\tShow solution in Prolog format\n" + 
-          " -ssol\t\tShow solution in SMT-LIB format\n" + 
-          " -logSimplified\tShow clauses after preprocessing in Prolog format\n" +
-          " -logSimplifiedSMT\tShow clauses after preprocessing in SMT-LIB format\n" +
-          " -disj\t\tUse disjunctive interpolation\n" +
-          " -stac\t\tStatic acceleration of loops\n" +
-          " -lbe\t\tDisable preprocessor (e.g., clause inlining)\n" +
-          " -arrayQuans:n\tIntroduce n quantifiers for each array argument (default: off)\n" +
-          " -cloneArrays\tUse separate array theories for independent arrays\n" +
-          " -noSlicing\tDisable slicing of clauses\n" +
-          " -noIntervals\tDisable interval analysis\n" +
-          " -hints:f\tRead hints (initial predicates and abstraction templates) from a file\n" +
-          " -postHints:f\tRead hints for processed clauses from a file\n" +
-          " -pHints\tPrint initial predicates and abstraction templates\n" +
-          " -pPredicates:f\tOutput predicates computed by CEGAR to a file\n" +
+          " -horn             Enable this engine\n" +
+          " -p                Pretty Print Horn clauses\n" +
+          " -sp               Pretty print the Horn clauses in SMT-LIB format\n" +
+          " -sol              Show solution in Prolog format\n" +
+          " -ssol             Show solution in SMT-LIB format\n" +
+          " -logSimplified    Show clauses after preprocessing in Prolog format\n" +
+          " -logSimplifiedSMT Show clauses after preprocessing in SMT-LIB format\n" +
+          " -disj             Use disjunctive interpolation\n" +
+          " -stac             Static acceleration of loops\n" +
+          " -lbe              Disable preprocessor (e.g., clause inlining)\n" +
+          " -arrayQuans:n     Introduce n quantifiers for each array argument\n" +
+          "                     (default: off)\n" +
+          " -cloneArrays      Use separate array theories for independent arrays\n" +
+          " -noSlicing        Disable slicing of clauses\n" +
+          " -noIntervals      Disable interval analysis\n" +
+          " -hints:f          Read hints (initial predicates and abstraction templates)\n" +
+          "                     from a file\n" +
+          " -postHints:f      Read hints for processed clauses from a file\n" +
+          " -pHints           Print initial predicates and abstraction templates\n" +
+          " -pPredicates:f    Output predicates computed by CEGAR to a file\n" +
+          " -sym              Use symbolic execution with the default engine (bfs)\n" +
+          " -sym:x            Use symbolic execution where x : {dfs, bfs}\n" +
+          "                     {dfs: depth-first forward, bfs: breadth-first forward}\n" +
+          " -symDepth:n       Set a max depth for symbolic execution (underapproximate)\n" +
 //          " -glb\t\tUse the global approach to solve Horn clauses (outdated)\n" +
-	  "\n" +
+//	  "\n" +
 //          " -abstract\tUse interpolation abstraction for better interpolants (default)\n" +
-          " -abstract:t\tInterp. abstraction: off, manual, term, oct,\n" +
-          "            \t                     relEqs (default), relIneqs\n" +
-          " -abstractTO:t\tTimeout (s) for abstraction search (default: 2.0)\n" +
-          " -abstractPO\tRun with and w/o interpolation abstraction in parallel\n" +
-          " -portfolio\tRun different standard configurations in parallel\n" +
-          " -splitClauses:n\tAggressiveness when splitting disjunctions in clauses\n" +
-          "                \t                     (0 <= n <= 2, default: 1)\n" +
-          
+          " -abstract:t       Interp. abstraction: off, manual, term, oct,\n" +
+          "                     relEqs (default), relIneqs\n" +
+          " -abstractTO:t     Timeout (s) for abstraction search (default: 2.0)\n" +
+          " -abstractPO       Run with and w/o interpolation abstraction in parallel\n" +
+          " -portfolio        Run different standard configurations in parallel\n" +
+          " -splitClauses:n   Aggressiveness when splitting disjunctions in clauses\n" +
+          "                     (0 <= n <= 2, default: 1)\n" +
+
           "\n" +
-          " -hin\t\tExpect input in Prolog Horn format\n" +  
-          " -hsmt\t\tExpect input in Horn SMT-LIB format\n" +
-          " -ints\t\tExpect input in integer NTS format\n" +
-          " -conc\t\tExpect input in C/C++/TA format\n" +
+          " -hin              Expect input in Prolog Horn format\n" +
+          " -hsmt             Expect input in Horn SMT-LIB format\n" +
+          " -ints             Expect input in integer NTS format\n" +
+          " -conc             Expect input in C/C++/TA format\n" +
 //          " -bip\t\tExpect input in BIP format\n" +
 //          " -uppog\t\tExpect UPPAAL file using Owicki-Gries encoding\n" +
 //          " -upprg\t\tExpect UPPAAL file using Rely-Guarantee encoding\n" +
 //          " -upprel\tExpect UPPAAL file using Relational Encoding\n"
           "\n" +
           "C/C++/TA front-end:\n" +
-          " -arithMode:t\tInteger semantics: math (default), ilp32, lp64, llp64\n" +
-          " -pIntermediate\tDump Horn clauses encoding concurrent programs\n"
+          " -arithMode:t      Integer semantics: math (default), ilp32, lp64, llp64\n" +
+          " -pIntermediate    Dump Horn clauses encoding concurrent programs\n"
           )
           false
       case fn :: rest => fileName = fn;  openInputFile; arguments(rest)
