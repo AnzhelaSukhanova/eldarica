@@ -93,12 +93,9 @@ object SymbolFactory {
     def postprocessing =
       new Postprocessing(signature, functionEnc.predTranslation)
 
-    protected def addConstant(constant: ConstantTerm): Unit =
-      constantsToAdd += constant
-
     def genConstant(name : String) : ConstantTerm = {
       val res = new ConstantTerm(name)
-      addConstant(res)
+      constantsToAdd += res
       res
     }
 
@@ -127,9 +124,9 @@ object SymbolFactory {
     }
 
     def addSymbol(c : ConstantTerm) : Unit =
-      addConstant(c)
+      constantsToAdd += c
     def addSymbols(cs : Seq[ConstantTerm]) : Unit =
-      cs foreach addConstant
+      constantsToAdd ++= cs
     
     def reducer(assumptions : Conjunction) =
       ReduceWithConjunction(assumptions, order, reducerSettings)

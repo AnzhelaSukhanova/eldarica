@@ -123,6 +123,9 @@ object DisjInterpolator {
       }
 
     while (res == null) {
+      val traceCollector = lazabs.GlobalParameters.get.traceCollector
+      traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
+
       val andNum = dag.iterator.count(_.isInstanceOf[AndNode[_, _]])
       val orNum = dag.iterator.count(_.isInstanceOf[OrNode[_, _]])
 

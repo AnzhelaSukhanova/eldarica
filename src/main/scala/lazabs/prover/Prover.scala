@@ -161,6 +161,9 @@ object Prover {
    * @param e the input formula
    */
   def isSatisfiable(e: Expression): Option[Boolean] = {
+    val traceCollector = lazabs.GlobalParameters.get.traceCollector
+    traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
+
     val stan = standardPrint(e)
     cache.get(stan) match {
       case Some(r) =>

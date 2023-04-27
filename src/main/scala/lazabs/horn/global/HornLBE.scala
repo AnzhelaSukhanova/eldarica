@@ -96,6 +96,9 @@ object HornLBE {
   }
 
   def apply(originalClauses: Seq[HornClause]): Seq[HornClause] = {
+    val traceCollector = lazabs.GlobalParameters.get.traceCollector
+    traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
+
     var linearNonRecCls = UniqueLinearNonRec(originalClauses)
     var result = originalClauses
     while(!linearNonRecCls.isEmpty) {

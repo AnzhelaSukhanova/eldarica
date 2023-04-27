@@ -49,6 +49,9 @@ object ClauseShortener {
   
     def apply(tempPreds : Set[Predicate],
               backMapping : Map[Clause, Clause]) : BTranslator = {
+      val traceCollector = lazabs.GlobalParameters.get.traceCollector
+      traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
+
       val extendedMapping =
         for ((newClause, oldClause) <- backMapping) yield {
           assert(newClause.body.size == oldClause.body.size)
@@ -144,6 +147,9 @@ class ClauseShortener extends HornPreprocessor {
   def process(clauses : Clauses, hints : VerificationHints,
               frozenPredicates : Set[Predicate])
              : (Clauses, VerificationHints, BackTranslator) = {
+    val traceCollector = lazabs.GlobalParameters.get.traceCollector
+    traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
+
     val (newClauses, newHints) =
       splitClauseBodies3(clauses, hints)
 

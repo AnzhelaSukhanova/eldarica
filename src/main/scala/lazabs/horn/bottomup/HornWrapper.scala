@@ -55,7 +55,6 @@ import lazabs.horn.abstractions.{AbsLattice, AbsReader, LoopDetector,
 import AbstractionRecord.AbstractionMap
 import StaticAbstractionBuilder.AbstractionType
 import lazabs.horn.concurrency.ReaderMain
-import lazabs.horn.symex.{BreadthFirstForwardSymex, DepthFirstForwardSymex, Symex}
 
 import scala.collection.mutable.{HashSet => MHashSet, HashMap => MHashMap,
                                  LinkedHashMap}
@@ -70,6 +69,9 @@ object HornWrapper {
   def verifySolution(fullSol : HornPreprocessor.Solution,
                      unsimplifiedClauses : Seq[Clause]) : Unit = {
           // verify correctness of the solution
+          val traceCollector = lazabs.GlobalParameters.get.traceCollector
+          traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
+
           if (lazabs.Main.assertions) assert(SimpleAPI.withProver { p =>
             import p._
             unsimplifiedClauses forall { case clause@Clause(head, body, constraint) => scope {
@@ -160,7 +162,7 @@ class HornWrapper(constraints  : Seq[HornClause],
 
   private val translator = new HornTranslator
   import translator._
-  
+
   //////////////////////////////////////////////////////////////////////////////
 
   GlobalParameters.get.setupApUtilDebug
@@ -225,8 +227,13 @@ class HornWrapper(constraints  : Seq[HornClause],
                                 :(Seq[Clause],
                                   VerificationHints,
                                   BackTranslator) = {
+    val traceCollector = lazabs.GlobalParameters.get.traceCollector
+    traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
+
     val (simplifiedClauses, simpPreHints, backTranslator) =
       Console.withErr(outStream) {
+        val traceCollector = lazabs.GlobalParameters.get.traceCollector
+        traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
         if (lbe) {
           (unsimplifiedClauses, hints, HornPreprocessor.IDENTITY_TRANSLATOR)
         } else {
@@ -285,7 +292,7 @@ class HornWrapper(constraints  : Seq[HornClause],
   def printMonolithic(converted : Seq[Clause]) : Unit =
       if (converted forall { case Clause(_, body, _) => body.size <= 1 }) {
         Console.err.println("Clauses are linear; printing monolithic form")
-        
+
         val preds =
           (for (Clause(head, body, _) <- converted.iterator;
                 IAtom(p, _) <- (Iterator single head) ++ body.iterator)
@@ -301,7 +308,7 @@ class HornWrapper(constraints  : Seq[HornClause],
                        yield new ConstantTerm("post" + i)
 
         val initClause = {
-          val constraint = 
+          val constraint =
             or(for (Clause(IAtom(pred, args), List(), constraint) <-
                       converted.iterator;
                     if (pred != FALSE))
@@ -314,9 +321,9 @@ class HornWrapper(constraints  : Seq[HornClause],
         if (converted exists { case Clause(IAtom(FALSE, _), List(), _) => true
                                case _ => false })
           Console.err.println("WARNING: ignoring clauses without relation symbols")
-          
+
         val transitionClause = {
-          val constraint = 
+          val constraint =
             or(for (Clause(IAtom(predH, argsH),
                            List(IAtom(predB, argsB)), constraint) <-
                       converted.iterator;
@@ -330,7 +337,7 @@ class HornWrapper(constraints  : Seq[HornClause],
         }
 
         val assertionClause = {
-          val constraint = 
+          val constraint =
             or(for (Clause(IAtom(FALSE, _),
                            List(IAtom(predB, argsB)), constraint) <-
                       converted.iterator)
@@ -356,24 +363,15 @@ class HornWrapper(constraints  : Seq[HornClause],
 
   //////////////////////////////////////////////////////////////////////////////
 
-  private def getSymex(clauses : Seq[Clause]) : Option[Symex[Clause]] = {
-    val symexDepth = GlobalParameters.get.symexMaxDepth
-    GlobalParameters.get.symexEngine match {
-      case GlobalParameters.SymexEngine.DepthFirstForward   =>
-        Some(new DepthFirstForwardSymex[Clause](clauses)) // todo: add depth
-      case GlobalParameters.SymexEngine.BreadthFirstForward =>
-        Some(new BreadthFirstForwardSymex[Clause](clauses, symexDepth))
-      case GlobalParameters.SymexEngine.None                => None
-    }
-  }
-
   def standardCheck() : ResultType = {
+    val traceCollector = lazabs.GlobalParameters.get.traceCollector
+    traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
+
     val (simplifiedClauses, allHints, preprocBackTranslator) =
       preprocessClauses(unsimplifiedClauses, hints)
-    val symexEngine = getSymex(simplifiedClauses)
     (new InnerHornWrapper(unsimplifiedClauses, simplifiedClauses,
                           allHints, preprocBackTranslator,
-                          disjunctive, outStream, symexEngine)).result
+                          disjunctive, outStream)).result
   }
 
   def isNotLinearLIA(clause : Clause) : Boolean = {
@@ -387,18 +385,23 @@ class HornWrapper(constraints  : Seq[HornClause],
   def accelCheck() : ResultType = {
     // We apply static acceleration only if all clauses are linear,
     // and if the clauses only use LIA
+    val traceCollector = lazabs.GlobalParameters.get.traceCollector
+    traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
 
     if (unsimplifiedClauses exists isNotLinearLIA)
       throw new Exception("static acceleration cannot be applied")
-
     val (simplifiedClauses, allHints, preprocBackTranslator) =
       preprocessClauses(unsimplifiedClauses, hints)
     (new InnerHornWrapper(unsimplifiedClauses, simplifiedClauses,
                           allHints, preprocBackTranslator,
-                          disjunctive, outStream, None)).result
+                          disjunctive, outStream)).result
   }
 
+
   def templatePOCheck(delay : Int) : ResultType = {
+    val traceCollector = lazabs.GlobalParameters.get.traceCollector
+    traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
+
     val (simplifiedClauses, allHints, preprocBackTranslator) =
       preprocessClauses(unsimplifiedClauses, hints)
 
@@ -406,7 +409,7 @@ class HornWrapper(constraints  : Seq[HornClause],
                         startDelay = delay) {
       (new InnerHornWrapper(unsimplifiedClauses, simplifiedClauses,
                             allHints, preprocBackTranslator,
-                            disjunctive, outStream, None)).result
+                            disjunctive, outStream)).result
     }
   }
 
@@ -422,8 +425,8 @@ class HornWrapper(constraints  : Seq[HornClause],
                                       () => templatePOCheck(1000)),
                                  GlobalParameters.get.generalPortfolioParams,
                                  startDelay = 1000)).result
-  }
 
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -433,8 +436,7 @@ class InnerHornWrapper(unsimplifiedClauses : Seq[Clause],
                        simpHints : VerificationHints,
                        preprocBackTranslator : BackTranslator,
                        disjunctive : Boolean,
-                       outStream : java.io.OutputStream,
-                       symexEngine : Option[Symex[Clause]]) {
+                       outStream : java.io.OutputStream) {
 
   /** Automatically computed interpolation abstraction hints */
   private val abstractionType =
@@ -456,7 +458,7 @@ class InnerHornWrapper(unsimplifiedClauses : Seq[Clause],
   //////////////////////////////////////////////////////////////////////////////
 
   private val predGenerator = Console.withErr(outStream) {
-    if (GlobalParameters.get.templateBasedInterpolation && symexEngine.isEmpty) {
+    if (GlobalParameters.get.templateBasedInterpolation) {
       val fullAbstractionMap =
         AbstractionRecord.mergeMaps(hintsAbstraction, autoAbstraction)
 
@@ -484,59 +486,47 @@ class InnerHornWrapper(unsimplifiedClauses : Seq[Clause],
       else
         CEGAR.CounterexampleMethod.FirstBestShortest
 
+    val predAbs = Console.withOut(outStream) {
+      println
+      println(
+         "----------------------------------- CEGAR --------------------------------------")
+
+      val predAbs =
+        new HornPredAbs(simplifiedClauses,
+                        simpHints.toInitialPredicates, predGenerator,
+                        counterexampleMethod)
+
+      GlobalParameters.get.predicateOutputFile match {
+        case "" =>
+          // nothing
+        case filename => {
+          val predicates =
+            VerificationHints(
+              for ((p, preds) <- predAbs.relevantPredicates) yield {
+                 val hints =
+                   for (f <- preds) yield VerificationHints.VerifHintInitPred(f)
+                 p -> hints
+              })
+
+          println(
+            "Saving CEGAR predicates to " + filename)
+
+          val output = new java.io.FileOutputStream(filename)
+          Console.withOut(output) {
+            AbsReader.printHints(predicates)
+          }
+        }
+      }
+
+      predAbs
+    }
+
     // save the current configuration, to make sure that the lazily
     // computed solutions or counterexamples are computed with the
     // same settings
     val currentParams = GlobalParameters.get.clone
 
-    val (result, maybePredAbs) = symexEngine match {
-      case Some(symex) =>
-        val res = Console.withOut(outStream){
-          symex.printInfo = true
-          symex.solve()
-        }
-
-        (res, None)
-      case None =>
-        val predAbs = Console.withOut(outStream){
-          println
-          println(
-            "----------------------------------- CEGAR " +
-            "--------------------------------------")
-
-          val predAbs =
-            new HornPredAbs(simplifiedClauses,
-                            simpHints.toInitialPredicates, predGenerator,
-                            counterexampleMethod)
-
-          GlobalParameters.get.predicateOutputFile match {
-            case "" =>
-            // nothing
-            case filename => {
-              val predicates =
-                VerificationHints(
-                  for ((p, preds) <- predAbs.relevantPredicates) yield {
-                    val hints =
-                      for (f <- preds) yield VerificationHints.VerifHintInitPred(f)
-                    p -> hints
-                  })
-
-              println(
-                "Saving CEGAR predicates to " + filename)
-
-              val output = new java.io.FileOutputStream(filename)
-              Console.withOut(output){
-                AbsReader.printHints(predicates)
-              }
-            }
-          }
-
-          predAbs
-        }
-        (predAbs.result, Some(predAbs))
-    }
-
-    result match {
+    predAbs.result match {
       case Left(res) => {
         def solFun() =
           GlobalParameters.withValue(currentParams) {
@@ -552,8 +542,8 @@ class InnerHornWrapper(unsimplifiedClauses : Seq[Clause],
 
         val r = Left(solFun _)
 
-        if (GlobalParameters.get.minePredicates && maybePredAbs.nonEmpty)
-          new PredicateMiner(maybePredAbs.get)
+        if (GlobalParameters.get.minePredicates)
+          new PredicateMiner(predAbs)
 
         r
       }
@@ -714,7 +704,6 @@ class HornTranslator {
     }
 
     def transform(cl: HornClause): Clause = {
-
       val symbolMap = LinkedHashMap[String, ConstantTerm]().empty
 
       val headAtom = cl.head match {

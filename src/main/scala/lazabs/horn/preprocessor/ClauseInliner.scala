@@ -63,6 +63,9 @@ class ClauseInliner extends HornPreprocessor {
   def process(clauses : Clauses, hints : VerificationHints,
               frozenPredicates : Set[Predicate])
              : (Clauses, VerificationHints, BackTranslator) = {
+    val traceCollector = lazabs.GlobalParameters.get.traceCollector
+    traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
+
     for (clause <- clauses)
       if (SizeVisitor(clause.constraint) > CONSTRAINT_SIZE_LIMIT)
         blockedPreds ++= clause.predicates
@@ -264,6 +267,9 @@ class ClauseInliner extends HornPreprocessor {
   private def elimLinearDefs(allClauses : Seq[HornClauses.Clause],
                              hints : VerificationHints)
                   : (Seq[HornClauses.Clause], VerificationHints) = {
+    val traceCollector = lazabs.GlobalParameters.get.traceCollector
+    traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
+
     var changed = true
     var clauses = allClauses
     var removedPreds : Set[Predicate] = Set()

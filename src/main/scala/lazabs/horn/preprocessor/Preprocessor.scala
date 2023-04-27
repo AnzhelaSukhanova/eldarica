@@ -61,6 +61,8 @@ object HornPreprocessor {
     def simplifyHelp(depth : Int, dag : CounterExample)
                     : (CounterExample, List[Int]) = dag match {
       case DagNode(pair@(atom, clause), children, next) => {
+        val traceCollector = lazabs.GlobalParameters.get.traceCollector
+        traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
         val (newNext, shifts) = simplifyHelp(depth + 1, next)
         val newChildren = for (c <- children) yield (c + shifts(c - 1))
         val newShifts = (seenStates get atom) match {
@@ -73,8 +75,11 @@ object HornPreprocessor {
         }
         (DagNode(pair, newChildren, newNext), newShifts)
       }
-      case DagEmpty =>
+      case DagEmpty => {
+        val traceCollector = lazabs.GlobalParameters.get.traceCollector
+        traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
         (DagEmpty, List())
+      }
     }
 
     simplifyHelp(0, cex)._1.elimUnconnectedNodes

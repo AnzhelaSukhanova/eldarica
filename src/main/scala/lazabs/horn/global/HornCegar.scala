@@ -78,6 +78,9 @@ case class HornCegar(val originalConstraints: Seq[HornClause], val log: Boolean)
    * replaces the variables used in the predicate with the local variables used in the constraint 
    */
   def instantiatePredicate(orig: Expression, params: List[Parameter]): Expression = {
+    val traceCollector = lazabs.GlobalParameters.get.traceCollector
+    traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
+
     val replace = Map[Variable,Expression]().empty ++ (0 until params.size).zip(params).map{x => (Variable("_" + x._1,Some(x._1)) -> Variable(x._2.name,None).stype(x._2.typ))}
     def rename(e: Expression): Expression = e match {
       case Existential(v, qe) => Existential(v, rename(qe))
@@ -160,6 +163,9 @@ case class HornCegar(val originalConstraints: Seq[HornClause], val log: Boolean)
    * adds a horn clause to ARG
    */
   def addRuleToTree(cl: HornClause,removal: Set[Expression] = Set()) {
+    val traceCollector = lazabs.GlobalParameters.get.traceCollector
+    traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
+
     val headNode = cl.head match {
       case RelVar(i,params) => getAbsNode(i,alpha(i) -- removal)
       case Interp(BoolConst(false)) => arg.startNode
@@ -180,6 +186,9 @@ case class HornCegar(val originalConstraints: Seq[HornClause], val log: Boolean)
    * the method for constructing an Abstract Reachability Graph
    */
   def constructARG {
+    val traceCollector = lazabs.GlobalParameters.get.traceCollector
+    traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
+
     var unsatClause = constraints.find(clause => !isSatisfied(clause) && (clause.head != Interp(BoolConst(false))))
     while(unsatClause.isDefined) {
       unsatClause match {
@@ -292,6 +301,9 @@ case class HornCegar(val originalConstraints: Seq[HornClause], val log: Boolean)
   }
   
   def counterExampleDag(nodes: HashMap[ARGNode,Int]): Dag[AndOrNode[HornClause,Unit]] = {
+    val traceCollector = lazabs.GlobalParameters.get.traceCollector
+    traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
+
     var dag: Dag[AndOrNode[HornClause,Unit]] = DagEmpty
     nodes.toList.sortWith((a,b) => a._2 >= b._2).foreach {
       case (node,i) =>
@@ -332,6 +344,9 @@ case class HornCegar(val originalConstraints: Seq[HornClause], val log: Boolean)
    * refining a counter-example dag
    */
   def refinement: Map[String,Set[Expression]] = {
+    val traceCollector = lazabs.GlobalParameters.get.traceCollector
+    traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
+
     if(status == SAFE) return Map.empty
     //DrawGraph(arg)
     //Console.readLine
@@ -369,6 +384,9 @@ case class HornCegar(val originalConstraints: Seq[HornClause], val log: Boolean)
     //DrawGraph(arg)
     //Console.readLine
     while(!newPredicates.isEmpty) {
+      val traceCollector = lazabs.GlobalParameters.get.traceCollector
+      traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
+
       newPredicates.foreach {res =>
         pi.update(res._1,pi.getOrElse(res._1,Set()) ++ res._2)
       }

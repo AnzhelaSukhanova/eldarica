@@ -77,6 +77,9 @@ class DefaultPreprocessor extends HornPreprocessor {
   def process(clauses : Clauses, hints : VerificationHints,
               frozenPredicates : Set[Predicate])
              : (Clauses, VerificationHints, BackTranslator) = {
+    val traceCollector = lazabs.GlobalParameters.get.traceCollector
+    traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
+
     var curClauses = clauses
     var curHints = hints
 
@@ -172,7 +175,6 @@ class DefaultPreprocessor extends HornPreprocessor {
       if (!(curClauses eq oldClauses))
         condenseClauses
     }
-
     // Clone arrays
     if (GlobalParameters.get.arrayCloning) {
       applyStage(new ArraySplitter)

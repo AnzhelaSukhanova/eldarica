@@ -55,6 +55,8 @@ object RationalDenomUnifier extends HornPreprocessor {
   def process(clauses : Clauses, hints : VerificationHints,
               frozenPredicates : Set[Predicate])
              : (Clauses, VerificationHints, BackTranslator) = {
+    val traceCollector = lazabs.GlobalParameters.get.traceCollector
+    traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
 
     val predMapping =
       (for (pred <- HornClauses.allPredicates(clauses).iterator) yield {

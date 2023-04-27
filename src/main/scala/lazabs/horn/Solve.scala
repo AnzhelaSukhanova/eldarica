@@ -53,7 +53,6 @@ object Solve {
       println("No Horn clause")
       sys.exit(0)
     }       */
-
     val arities = clauseSet.map(cl => Horn.getRelVarArities(cl)).reduceLeft(_++_)
     val timeStart = System.currentTimeMillis
 

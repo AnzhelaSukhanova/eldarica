@@ -41,12 +41,15 @@ object ParallelComputation {
   def apply[A](parameters  : Seq[GlobalParameters],
                startDelay  : Int = 200,
                checkPeriod : Int = 50)
-              (comp: => A) =
+              (comp: => A) = {
+    val traceCollector = lazabs.GlobalParameters.get.traceCollector
+    traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
     if (parameters.isEmpty)
       comp
     else
       (new ParallelComputation(for (_ <- parameters) yield (() => comp),
                                parameters, startDelay, checkPeriod)).result
+  }
 
 }
 

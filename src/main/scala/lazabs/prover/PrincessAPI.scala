@@ -428,6 +428,9 @@ abstract class AbstractPrincessAPI extends PrincessAPI {
   def interpolate(problem : IFormula,
                   constants : Seq[ConstantTerm],
                   partitions : List[IInterpolantSpec]) : Option[List[IFormula]] = {
+    val traceCollector = lazabs.GlobalParameters.get.traceCollector
+    traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
+
     // signature of the problem
     val order = backgroundOrder extend constants
     val signature = Signature(constants.toSet, Set(), Set(), order)

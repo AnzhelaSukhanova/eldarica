@@ -697,6 +697,9 @@ class PrincessWrapper {
   }
 
   def elimQuantifiers(e : Expression) : Expression = {
+    val traceCollector = lazabs.GlobalParameters.get.traceCollector
+    traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
+
     var (Seq(formula),symbolMap) = formula2Princess(List(e))
     //println("qe: " + formula)
     val rawRes = elimQuans(formula.asInstanceOf[IFormula], symbolMap.values.toSeq)
@@ -705,6 +708,9 @@ class PrincessWrapper {
   }
 
   def simplify(e : Expression) : Expression = {
+    val traceCollector = lazabs.GlobalParameters.get.traceCollector
+    traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
+
     var (Seq(formula),symbolMap) = formula2Princess(List(e))
     //println("qe: " + formula)
     val rawRes = dnfSimplify(formula.asInstanceOf[IFormula], symbolMap.values.toSeq)

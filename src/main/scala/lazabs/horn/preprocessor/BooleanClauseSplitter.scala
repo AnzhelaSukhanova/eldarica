@@ -233,6 +233,9 @@ class BooleanClauseSplitter extends HornPreprocessor {
   private def cleverSplit(clause : Clause)
                          (implicit p : SimpleAPI) : Seq[Clause] =
     if (needsSplittingPos(clause.constraint)) {
+      val traceCollector = lazabs.GlobalParameters.get.traceCollector
+      traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
+
       // first try the full splitting, but this might sometimes explode
       val startTime = System.currentTimeMillis
       def checker() : Unit = {

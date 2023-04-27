@@ -90,6 +90,9 @@ abstract class ArgumentExpander extends HornPreprocessor {
   def process(clauses : Clauses, hints : VerificationHints,
               frozenPredicates : Set[Predicate])
              : (Clauses, VerificationHints, BackTranslator) = {
+    val traceCollector = lazabs.GlobalParameters.get.traceCollector
+    traceCollector.write(s"${sourcecode.Name()} ${sourcecode.FileName()}:${sourcecode.Line()}\n")
+
     setup(clauses, frozenPredicates)
 
     val predicates =
